@@ -9,7 +9,7 @@ SHELL := $(subst cmd,bin,$(subst git.exe,bash.exe,$(GIT_BASH)))
 endif
 endif
 
-.PHONY: all build test test-full-cgo test-agent-workflow-docker test-regression bench bench-quick clean install install-force help check-up-to-date fmt fmt-check
+.PHONY: all build test test-full-cgo test-agent-workflow-docker test-product-e2e-docker test-e2e-docker test-regression bench bench-quick clean install install-force help check-up-to-date fmt fmt-check
 
 # Default target
 all: build
@@ -85,6 +85,15 @@ test-full-cgo:
 test-agent-workflow-docker:
 	@echo "Running Docker-backed agent workflow smoke test..."
 	@./scripts/test-agent-workflow-docker.sh
+
+# Run broad Docker-backed product CLI smoke tests.
+test-product-e2e-docker:
+	@echo "Running Docker-backed product E2E smoke test..."
+	@./scripts/test-product-e2e-docker.sh
+
+# Run all Docker-backed E2E smoke suites.
+test-e2e-docker: test-agent-workflow-docker test-product-e2e-docker
+	@echo "All Docker-backed E2E smoke tests passed."
 
 # Run differential regression tests (baseline v0.49.6 vs current worktree).
 # Downloads baseline binary on first run; cached in ~/Library/Caches/beads-regression/.
@@ -180,6 +189,8 @@ help:
 	@echo "  make test         - Run all tests"
 	@echo "  make test-full-cgo - Run full CGO-enabled test suite"
 	@echo "  make test-agent-workflow-docker - Run isolated Docker-backed workflow smoke test"
+	@echo "  make test-product-e2e-docker - Run broad Docker-backed product E2E smoke test"
+	@echo "  make test-e2e-docker - Run all Docker-backed E2E smoke suites"
 	@echo "  make test-regression - Run differential regression tests (baseline vs candidate)"
 	@echo "  make bench        - Run performance benchmarks (generates CPU profiles)"
 	@echo "  make bench-quick  - Run quick benchmarks (shorter benchtime)"

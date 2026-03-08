@@ -88,6 +88,10 @@ docker pull dolthub/dolt-sql-server:1.43.0
 
 # Point tests at an existing Dolt server (skips container startup)
 BEADS_DOLT_PORT=3308 ./scripts/test.sh
+
+# Run the Docker-backed end-to-end smoke suites
+make test-e2e-docker
+make test-product-e2e-docker
 ```
 
 `BEADS_DOLT_PORT` — when set, tests reuse the server at that port instead of
