@@ -145,6 +145,7 @@ Output:
 
 ```bash
 ./bd ready
+./bd claim-ready --json
 ```
 
 Output:
@@ -170,6 +171,32 @@ Only bd-1 is ready because bd-2 and bd-3 are blocked!
 ```
 
 Now bd-2 is ready! 🎉
+
+## Agent-Safe Workflow
+
+For multi-agent repos, prefer the helper commands that reduce coordination
+overhead and avoid duplicate follow-up tickets:
+
+```bash
+# Atomically grab the best next task
+bd claim-ready --json
+
+# Create discovered follow-up work linked to the current task
+bd discover-current "Add retries to the API client" --description "Found while implementing auth" --json
+
+# Find-or-create shared work even if several agents notice it
+bd ensure "Document new auth edge case" --json
+
+# Use stable dedupe fingerprints when titles may vary
+bd ensure "Retry Dolt serialization failure" \
+  --dedupe-key path=internal/storage/dolt/issues.go \
+  --dedupe-key symbol=CreateIssue \
+  --json
+
+# Update or close the current task without re-resolving its ID
+bd update-current --append-notes "Implemented server retry path" --json
+bd close-current --reason "Done" --json
+```
 
 ## Track Progress
 

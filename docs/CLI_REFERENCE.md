@@ -37,6 +37,7 @@ bd info --json
 bd ready --json
 
 # Atomically claim an issue from the ready queue
+bd claim-ready --json
 bd update <id> --claim --json               # Fails if already claimed
 
 # Find stale issues (not updated recently)
@@ -46,6 +47,31 @@ bd stale --limit 20 --json                   # Limit results
 ```
 
 ## Issue Management
+
+### Agent Workflow Shortcuts
+
+```bash
+# Find-or-create active work without duplicate tickets
+bd ensure "Issue title" --json
+
+# Link discovered work to the current task
+bd discover-current "Follow-up title" --json
+
+# Update or close the current task directly
+bd update-current --append-notes "Progress update" --json
+bd close-current --reason "Done" --json
+
+# Use stable fingerprints when equivalent work may have different titles
+bd ensure "Retry serialization failures" \
+  --dedupe-key path=internal/storage/dolt/issues.go \
+  --dedupe-key symbol=CreateIssue \
+  --json
+
+# Machine-oriented wrappers for orchestration layers
+bd agent current
+bd agent claim-ready
+bd agent ensure "Issue title"
+```
 
 ### Create Issues
 
@@ -88,6 +114,15 @@ bd create "Tests" -p 1 --parent bd-a3f8e9 --json                # Auto-assigned:
 # Create and link discovered work (one command)
 bd create "Found bug" -t bug -p 1 --deps discovered-from:<parent-id> --json
 
+# Agent-friendly helpers (preferred for multi-agent repos)
+bd ensure "Issue title" -t bug|feature|task -p 0-4 --json
+bd discover <parent-id> "Found bug" -t bug -p 1 --json
+bd discover-current "Found bug" -t bug -p 1 --json
+bd ensure "Retry serialization failure" \
+  --dedupe-key path=internal/storage/dolt/issues.go \
+  --dedupe-key symbol=CreateIssue \
+  --json
+
 # Create with external reference (v0.9.2+)
 bd create "Fix login" -t bug -p 1 --external-ref "gh-123" --json  # Short form
 bd create "Fix login" -t bug -p 1 --external-ref "https://github.com/org/repo/issues/123" --json  # Full URL
@@ -110,6 +145,8 @@ bd update <id> --external-ref "jira-PROJ-789" --json    # Custom prefix
 # Sets assignee to you and status to in_progress in one atomic operation
 # Fails if already claimed (assignee is not empty)
 bd update <id> --claim --json
+bd update-current --append-notes "Progress update" --json
+bd note-current "Quick note without re-resolving the current issue" --json
 
 # Edit issue fields in $EDITOR (HUMANS ONLY - not for agents)
 # NOTE: This command is intentionally NOT exposed via the MCP server
@@ -126,6 +163,7 @@ bd edit <id> --acceptance       # Edit acceptance criteria
 ```bash
 # Complete work (supports multiple IDs)
 bd close <id> [<id>...] --reason "Done" --json
+bd close-current --reason "Done" --json
 
 # Reopen closed issues (supports multiple IDs)
 bd reopen <id> [<id>...] --reason "Reopening" --json

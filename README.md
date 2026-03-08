@@ -42,10 +42,20 @@ echo "Use 'bd' for task tracking" >> AGENTS.md
 | Command | Action |
 | --- | --- |
 | `bd ready` | List tasks with no open blockers. |
+| `bd claim-ready --json` | Atomically claim the highest-priority ready task. |
 | `bd create "Title" -p 0` | Create a P0 task. |
+| `bd ensure "Title" --json` | Find or create a shared follow-up without duplicates. |
+| `bd discover-current "Title" --json` | Create discovered work linked to the current task. |
 | `bd update <id> --claim` | Atomically claim a task (sets assignee + in_progress). |
+| `bd update-current --notes "..." --json` | Update the current task without re-resolving its ID. |
+| `bd close-current --reason "Done" --json` | Close the current task directly. |
 | `bd dep add <child> <parent>` | Link tasks (blocks, related, parent-child). |
 | `bd show <id>` | View task details and audit trail. |
+
+For multi-agent repos, prefer `bd claim-ready`, `bd ensure`, `bd discover-current`,
+`bd update-current`, and `bd close-current` over raw parallel `bd create` calls.
+If the same logical task might be described with different titles, add a stable
+fingerprint such as `--dedupe-key path=internal/foo.go --dedupe-key symbol=Bar`.
 
 ## 🔗 Hierarchy & Workflow
 
