@@ -594,6 +594,11 @@ func runDiagnostics(path string) doctorResult {
 	result.Checks = append(result.Checks, agentDocsCheck)
 	// Don't fail overall check for missing docs, just warn
 
+	// Check 12a: Agent workflow concurrency guidance
+	agentWorkflowCheck := convertWithCategory(doctor.CheckAgentWorkflowConcurrency(path), doctor.CategoryIntegration)
+	result.Checks = append(result.Checks, agentWorkflowCheck)
+	// Don't fail overall check for workflow guidance, just warn
+
 	// Check 13: Legacy beads slash commands in documentation
 	legacyDocsCheck := convertWithCategory(doctor.CheckLegacyBeadsSlashCommands(path), doctor.CategoryMetadata)
 	result.Checks = append(result.Checks, legacyDocsCheck)

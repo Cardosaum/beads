@@ -17,6 +17,32 @@ import (
 
 // CreateIssue creates a new issue
 func (s *DoltStore) CreateIssue(ctx context.Context, issue *types.Issue, actor string) error {
+	original := cloneIssue(issue)
+	explicitID := strings.TrimSpace(issue.ID) != ""
+
+	return s.withRetry(ctx, func() error {
+		attempt := cloneIssue(original)
+		if !explicitID {
+			attempt.ID = ""
+		}
+		if original.CreatedAt.IsZero() {
+			attempt.CreatedAt = time.Time{}
+		}
+		if original.UpdatedAt.IsZero() {
+			attempt.UpdatedAt = time.Time{}
+		}
+		if original.ContentHash == "" {
+			attempt.ContentHash = ""
+		}
+		if err := s.createIssueOnce(ctx, attempt, actor); err != nil {
+			return err
+		}
+		copyIssue(issue, attempt)
+		return nil
+	})
+}
+
+func (s *DoltStore) createIssueOnce(ctx context.Context, issue *types.Issue, actor string) error {
 	// Validate metadata against schema if configured (GH#1416 Phase 2)
 	// Runs before ephemeral routing so wisps are also validated.
 	if err := validateMetadataIfConfigured(issue.Metadata); err != nil {
@@ -483,6 +509,12 @@ func (s *DoltStore) GetIssueByExternalRef(ctx context.Context, externalRef strin
 
 // UpdateIssue updates fields on an issue
 func (s *DoltStore) UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
+	return s.withRetry(ctx, func() error {
+		return s.updateIssueOnce(ctx, id, updates, actor)
+	})
+}
+
+func (s *DoltStore) updateIssueOnce(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
 	// Validate metadata against schema before wisp routing (GH#1416 Phase 2)
 	if rawMeta, ok := updates["metadata"]; ok {
 		metadataStr, err := storage.NormalizeMetadataValue(rawMeta)
@@ -597,6 +629,12 @@ func (s *DoltStore) UpdateIssue(ctx context.Context, id string, updates map[stri
 // It sets the assignee to actor and status to "in_progress" only if the issue
 // currently has no assignee. Returns storage.ErrAlreadyClaimed if already claimed.
 func (s *DoltStore) ClaimIssue(ctx context.Context, id string, actor string) error {
+	return s.withRetry(ctx, func() error {
+		return s.claimIssueOnce(ctx, id, actor)
+	})
+}
+
+func (s *DoltStore) claimIssueOnce(ctx context.Context, id string, actor string) error {
 	// Route ephemeral IDs to wisps table (falls through for promoted wisps)
 	if s.isActiveWisp(ctx, id) {
 		return s.claimWisp(ctx, id, actor)
@@ -671,6 +709,12 @@ func (s *DoltStore) ClaimIssue(ctx context.Context, id string, actor string) err
 
 // CloseIssue closes an issue with a reason
 func (s *DoltStore) CloseIssue(ctx context.Context, id string, reason string, actor string, session string) error {
+	return s.withRetry(ctx, func() error {
+		return s.closeIssueOnce(ctx, id, reason, actor, session)
+	})
+}
+
+func (s *DoltStore) closeIssueOnce(ctx context.Context, id string, reason string, actor string, session string) error {
 	// Route ephemeral IDs to wisps table (falls through for promoted wisps)
 	if s.isActiveWisp(ctx, id) {
 		return s.closeWisp(ctx, id, reason, actor, session)
@@ -721,6 +765,12 @@ func (s *DoltStore) CloseIssue(ctx context.Context, id string, reason string, ac
 
 // DeleteIssue permanently removes an issue
 func (s *DoltStore) DeleteIssue(ctx context.Context, id string) error {
+	return s.withRetry(ctx, func() error {
+		return s.deleteIssueOnce(ctx, id)
+	})
+}
+
+func (s *DoltStore) deleteIssueOnce(ctx context.Context, id string) error {
 	// Route ephemeral IDs to wisps table (falls through for promoted wisps)
 	if s.isActiveWisp(ctx, id) {
 		return s.deleteWisp(ctx, id)
@@ -775,6 +825,83 @@ func (s *DoltStore) DeleteIssue(ctx context.Context, id string) error {
 	}
 	s.invalidateBlockedIDsCache()
 	return nil
+}
+
+func cloneIssue(issue *types.Issue) *types.Issue {
+	if issue == nil {
+		return nil
+	}
+	clone := *issue
+	if issue.ExternalRef != nil {
+		externalRef := *issue.ExternalRef
+		clone.ExternalRef = &externalRef
+	}
+	if issue.ClosedAt != nil {
+		closedAt := *issue.ClosedAt
+		clone.ClosedAt = &closedAt
+	}
+	if issue.CompactedAt != nil {
+		compactedAt := *issue.CompactedAt
+		clone.CompactedAt = &compactedAt
+	}
+	if issue.CompactedAtCommit != nil {
+		compactedAtCommit := *issue.CompactedAtCommit
+		clone.CompactedAtCommit = &compactedAtCommit
+	}
+	if issue.Creator != nil {
+		creator := *issue.Creator
+		clone.Creator = &creator
+	}
+	if issue.QualityScore != nil {
+		qualityScore := *issue.QualityScore
+		clone.QualityScore = &qualityScore
+	}
+	if issue.DueAt != nil {
+		dueAt := *issue.DueAt
+		clone.DueAt = &dueAt
+	}
+	if issue.DeferUntil != nil {
+		deferUntil := *issue.DeferUntil
+		clone.DeferUntil = &deferUntil
+	}
+	if issue.LastActivity != nil {
+		lastActivity := *issue.LastActivity
+		clone.LastActivity = &lastActivity
+	}
+	if issue.EstimatedMinutes != nil {
+		estimated := *issue.EstimatedMinutes
+		clone.EstimatedMinutes = &estimated
+	}
+	if issue.Metadata != nil {
+		clone.Metadata = append(json.RawMessage(nil), issue.Metadata...)
+	}
+	if len(issue.Labels) > 0 {
+		clone.Labels = append([]string(nil), issue.Labels...)
+	}
+	if len(issue.BondedFrom) > 0 {
+		clone.BondedFrom = append([]types.BondRef(nil), issue.BondedFrom...)
+	}
+	if len(issue.Validations) > 0 {
+		clone.Validations = append([]types.Validation(nil), issue.Validations...)
+	}
+	if len(issue.Waiters) > 0 {
+		clone.Waiters = append([]string(nil), issue.Waiters...)
+	}
+	if len(issue.Dependencies) > 0 {
+		clone.Dependencies = append([]*types.Dependency(nil), issue.Dependencies...)
+	}
+	if len(issue.Comments) > 0 {
+		clone.Comments = append([]*types.Comment(nil), issue.Comments...)
+	}
+	return &clone
+}
+
+func copyIssue(dst *types.Issue, src *types.Issue) {
+	if dst == nil || src == nil {
+		return
+	}
+	cloned := cloneIssue(src)
+	*dst = *cloned
 }
 
 // DeleteIssues deletes multiple issues in a single transaction.

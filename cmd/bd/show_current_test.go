@@ -172,3 +172,25 @@ func TestResolveCurrentIssueID_NilStore(t *testing.T) {
 		t.Errorf("resolveCurrentIssueID() with nil store = %q, want empty", got)
 	}
 }
+
+func TestResolveCurrentIssueID_NilStoreFallsBackToWorkflowContext(t *testing.T) {
+	oldStore := store
+	store = nil
+	defer func() { store = oldStore }()
+
+	tmpBeads := filepath.Join(t.TempDir(), ".beads")
+	if err := os.MkdirAll(tmpBeads, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpBeads, "metadata.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatalf("write metadata.json: %v", err)
+	}
+	t.Setenv("BEADS_DIR", tmpBeads)
+
+	setWorkflowCurrentIssue("bd-ctx")
+
+	got := resolveCurrentIssueID(context.Background())
+	if got != "bd-ctx" {
+		t.Errorf("resolveCurrentIssueID() with workflow context = %q, want %q", got, "bd-ctx")
+	}
+}

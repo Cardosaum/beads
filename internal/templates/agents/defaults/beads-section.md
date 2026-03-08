@@ -16,13 +16,16 @@
 
 ```bash
 bd ready --json
+bd claim-ready --json
 ```
 
-**Create new issues:**
+**Create or reuse issues:**
 
 ```bash
 bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+bd ensure "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
+bd discover bd-123 "Issue title" --description="What this issue is about" -p 1 --json
+bd discover-current "Issue title" --description="What this issue is about" -p 1 --json
 ```
 
 **Claim and update:**
@@ -30,12 +33,15 @@ bd create "Issue title" --description="What this issue is about" -p 1 --deps dis
 ```bash
 bd update <id> --claim --json
 bd update bd-42 --priority 1 --json
+bd update-current --priority 1 --json
+bd note-current "Progress update or follow-up context" --json
 ```
 
 **Complete work:**
 
 ```bash
 bd close bd-42 --reason "Completed" --json
+bd close-current --reason "Completed" --json
 ```
 
 ### Issue Types
@@ -57,10 +63,13 @@ bd close bd-42 --reason "Completed" --json
 ### Workflow for AI Agents
 
 1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task atomically**: `bd update <id> --claim`
+2. **Claim your task atomically**: prefer `bd claim-ready` or `bd update <id> --claim`
 3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
+4. **Discover new work?** Prefer the helper commands:
+   - `bd discover <parent-id> "Found bug" --description="Details about what was found" -p 1`
+   - `bd discover-current "Found bug" --description="Details about what was found" -p 1`
+   - `bd ensure "Shared follow-up" --description="Create once even if several agents notice it"`
+   - Use `--dedupe-key path=... --dedupe-key symbol=...` when title wording may vary between agents
 5. **Complete**: `bd close <id> --reason "Done"`
 
 ### Auto-Sync
@@ -75,10 +84,12 @@ bd automatically syncs via Dolt:
 
 - ✅ Use bd for ALL task tracking
 - ✅ Always use `--json` flag for programmatic use
+- ✅ Prefer `bd discover`, `bd ensure`, `bd claim-ready`, `bd update-current`, and `bd close-current` for agent workflows
 - ✅ Link discovered work with `discovered-from` dependencies
 - ✅ Check `bd ready` before asking "what should I work on?"
 - ❌ Do NOT create markdown TODO lists
 - ❌ Do NOT use external issue trackers
+- ❌ Do NOT teach agents to spray parallel raw `bd create` for follow-up work
 - ❌ Do NOT duplicate tracking systems
 
 For more details, see README.md and docs/QUICKSTART.md.

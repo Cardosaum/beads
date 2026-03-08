@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	mysql "github.com/go-sql-driver/mysql"
 )
 
 func TestIsRetryableError(t *testing.T) {
@@ -75,6 +77,11 @@ func TestIsRetryableError(t *testing.T) {
 		{
 			name:     "unknown database - retryable (catalog race GH-1851)",
 			err:      errors.New("Error 1049 (42000): Unknown database 'beads_test'"),
+			expected: true,
+		},
+		{
+			name:     "serialization conflict - retryable",
+			err:      &mysql.MySQLError{Number: 1213, Message: "serialization failure"},
 			expected: true,
 		},
 		{

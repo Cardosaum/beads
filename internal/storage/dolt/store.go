@@ -175,6 +175,9 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
+	if isSerializationError(err) {
+		return true
+	}
 	errStr := strings.ToLower(err.Error())
 	// MySQL driver transient errors
 	if strings.Contains(errStr, "driver: bad connection") {

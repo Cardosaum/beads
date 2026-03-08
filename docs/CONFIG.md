@@ -382,8 +382,9 @@ bd config set issue_id_mode counter
 
 **Counter mode behavior:**
 - Each prefix (`bd`, `plug`, etc.) has its own independent counter
-- Counter is stored atomically in the database; concurrent creates within a single Dolt session are safe
+- Counter is stored atomically in the database; beads now retries Dolt serialization conflicts automatically for create/update/close/claim workflows
 - Explicit `--id` flag always overrides counter mode (the counter is not incremented)
+- Hash mode is still the recommended default for multi-agent repos because it avoids counter hot spots entirely
 
 **Enabling counter mode:**
 
@@ -437,7 +438,10 @@ bd create "Plugin task" -p 1        # → plug-1 (if prefix is "plug")
 
 Counter IDs are well-suited for linear project-management workflows and human-facing issue tracking.
 Hash IDs are safer when multiple agents or branches create issues concurrently, since each hash is
-independently unique without coordination.
+independently unique without coordination. For agent-heavy repos, prefer `bd discover`,
+`bd ensure`, `bd claim-ready`, `bd update-current`, and `bd close-current` over teaching agents to
+fire raw parallel `bd create` calls. If the same logical task may be described with different
+titles, add stable fingerprints such as `--dedupe-key path=cmd/bd/agent_workflow.go --dedupe-key symbol=runEnsureCommand`.
 
 See [ADAPTIVE_IDS.md](ADAPTIVE_IDS.md) for full documentation on hash-based ID generation.
 

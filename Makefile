@@ -9,7 +9,7 @@ SHELL := $(subst cmd,bin,$(subst git.exe,bash.exe,$(GIT_BASH)))
 endif
 endif
 
-.PHONY: all build test test-full-cgo test-regression bench bench-quick clean install install-force help check-up-to-date fmt fmt-check
+.PHONY: all build test test-full-cgo test-agent-workflow-docker test-regression bench bench-quick clean install install-force help check-up-to-date fmt fmt-check
 
 # Default target
 all: build
@@ -80,6 +80,11 @@ test:
 test-full-cgo:
 	@echo "Running full CGO-enabled tests..."
 	@./scripts/test-cgo.sh ./...
+
+# Run isolated Docker-backed smoke tests for the agent workflow commands.
+test-agent-workflow-docker:
+	@echo "Running Docker-backed agent workflow smoke test..."
+	@./scripts/test-agent-workflow-docker.sh
 
 # Run differential regression tests (baseline v0.49.6 vs current worktree).
 # Downloads baseline binary on first run; cached in ~/Library/Caches/beads-regression/.
@@ -174,6 +179,7 @@ help:
 	@echo "  make build        - Build the bd binary"
 	@echo "  make test         - Run all tests"
 	@echo "  make test-full-cgo - Run full CGO-enabled test suite"
+	@echo "  make test-agent-workflow-docker - Run isolated Docker-backed workflow smoke test"
 	@echo "  make test-regression - Run differential regression tests (baseline vs candidate)"
 	@echo "  make bench        - Run performance benchmarks (generates CPU profiles)"
 	@echo "  make bench-quick  - Run quick benchmarks (shorter benchtime)"

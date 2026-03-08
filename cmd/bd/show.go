@@ -376,10 +376,13 @@ func init() {
 }
 
 // resolveCurrentIssueID determines the current active issue for the agent.
-// Priority: in-progress assigned to actor > hooked > last touched.
+// Priority: in-progress assigned to actor > hooked > local workflow context > last touched.
 func resolveCurrentIssueID(ctx context.Context) string {
 	if store == nil {
-		// No store — fall back to last touched
+		// No store — fall back to local workflow context, then last touched.
+		if currentID := getWorkflowCurrentIssueID(); currentID != "" {
+			return currentID
+		}
 		return GetLastTouchedID()
 	}
 
@@ -411,6 +414,19 @@ func resolveCurrentIssueID(ctx context.Context) string {
 		}
 	}
 
-	// 3. Last touched issue (fallback)
+	// 3. Local workflow context (fallback for agent-oriented helper commands)
+	if currentID := getWorkflowCurrentIssueID(); currentID != "" {
+		result, err := resolveAndGetIssueWithRouting(ctx, store, currentID)
+		if err == nil && result != nil && result.Issue != nil && result.Issue.Status != types.StatusClosed {
+			result.Close()
+			return currentID
+		}
+		if result != nil {
+			result.Close()
+		}
+		clearWorkflowCurrentIssueIfMatches(currentID)
+	}
+
+	// 4. Last touched issue (fallback)
 	return GetLastTouchedID()
 }
